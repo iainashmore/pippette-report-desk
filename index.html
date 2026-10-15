@@ -275,7 +275,7 @@ async function load() {
     // A filter every record passes: a query with none needs a record-name
     // index these types do not have.
     const printReports = await queryAll("PrintProvenanceReport",
-      [{ fieldName: "code", comparator: "GREATER_THAN", fieldValue: { value: "" } }]);
+      [{ fieldName: "code", comparator: "NOT_EQUALS", fieldValue: { value: "" } }]);
     const shareReports = await queryAll("PublicModelReport",
       [{ fieldName: "createdAt", comparator: "GREATER_THAN", fieldValue: { value: 0 } }]);
 
