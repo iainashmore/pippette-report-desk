@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pippette Report Desk</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Figtree:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: a single review column — summary strip, then one row per reported
+   print or creature, worst first, picture on the left like a lost-property card. */
+:root {
+  --bg: #f6f4f1;
+  --panel: #ffffff;
+  --ink: #23201c;
+  --muted: #6f6a63;
+  --line: #e3ded6;
+  --accent: #2f6fd6;
+  --hidden: #c2410c;
+  --hidden-bg: #fdebe0;
+  --waiting: #8a6a00;
+  --waiting-bg: #fbf2cf;
+  --ok: #2e7d4f;
+  --ok-bg: #e2f2e8;
+  --display: "Fraunces", Georgia, serif;
+  --body: "Figtree", -apple-system, system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1b1a18; --panel: #24221f; --ink: #f1ede6; --muted: #a7a097; --line: #37342f;
+    --accent: #7aa7ff; --hidden: #ff9a66; --hidden-bg: #3a2418; --waiting: #e8c64a;
+    --waiting-bg: #352d10; --ok: #7fd3a1; --ok-bg: #173022; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #1b1a18; --panel: #24221f; --ink: #f1ede6; --muted: #a7a097; --line: #37342f;
+  --accent: #7aa7ff; --hidden: #ff9a66; --hidden-bg: #3a2418; --waiting: #e8c64a;
+  --waiting-bg: #352d10; --ok: #7fd3a1; --ok-bg: #173022; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 var(--body); }
+.wrap { max-width: 920px; margin: 0 auto; padding-inline: 16px; padding-block: 28px 64px; display: grid; gap: 22px; }
+h1 { font: 600 30px/1.15 var(--display); margin: 0; text-wrap: balance; }
+h2 { font: 600 19px/1.2 var(--display); margin: 0; }
+.lede { color: var(--muted); max-width: 62ch; margin: 6px 0 0; }
+.setup { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: grid; gap: 10px; }
+.setup label { font-weight: 600; font-size: 13px; letter-spacing: .02em; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+input[type=password] { flex: 1 1 260px; min-width: 0; font: 14px var(--mono); padding: 9px 11px; border-radius: 9px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); }
+button { font: 600 14px var(--body); padding: 9px 14px; border-radius: 9px; border: 0; background: var(--accent); color: #fff; cursor: pointer; }
+button.quiet { background: transparent; color: var(--accent); border: 1px solid var(--line); }
+button:focus-visible, input:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.small { font-size: 13px; color: var(--muted); }
+.strip { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { font: 600 12px var(--body); letter-spacing: .03em; padding: 4px 10px; border-radius: 999px; }
+.chip.hidden { color: var(--hidden); background: var(--hidden-bg); }
+.chip.waiting { color: var(--waiting); background: var(--waiting-bg); }
+.chip.ok { color: var(--ok); background: var(--ok-bg); }
+.chip.plain { color: var(--muted); background: transparent; border: 1px solid var(--line); }
+section { display: grid; gap: 10px; }
+.list { display: grid; gap: 10px; }
+.item { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 12px; display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 14px; align-items: start; }
+.pic { width: 96px; height: 96px; border-radius: 10px; background: var(--bg); object-fit: contain; display: block; }
+.body { display: grid; gap: 6px; min-width: 0; }
+.head { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; justify-content: space-between; }
+.name { font-weight: 600; font-size: 16px; }
+.code { font: 500 13px var(--mono); letter-spacing: .06em; color: var(--muted); }
+.meta { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.reasons { display: flex; flex-wrap: wrap; gap: 6px; }
+.note { font-size: 13px; background: var(--bg); border-radius: 8px; padding: 6px 9px; overflow-wrap: anywhere; }
+.empty { color: var(--muted); padding: 16px; border: 1px dashed var(--line); border-radius: 14px; }
+.error { color: var(--hidden); }
+.how { font-size: 13px; color: var(--muted); }
+.how code { font: 500 12px var(--mono); }
+@media (max-width: 480px) { .item { grid-template-columns: 72px minmax(0, 1fr); } .pic { width: 72px; height: 72px; } }
+.signin { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: grid; gap: 10px; justify-items: start; }
+.who { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.actions button { font-size: 13px; padding: 7px 12px; }
+button.danger { background: var(--hidden); }
+button.sure { background: var(--hidden); outline: 2px solid var(--hidden-bg); }
+button:disabled { opacity: .5; cursor: default; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Pippette Report Desk</h1>
+    <p class="lede">Everything children and finders have reported, worst first, with the picture each code or share shows. Only the Pippette moderator can open it, signed in with Apple.</p>
+  </header>
+
+  <div class="signin" id="gate">
+    <span class="small" id="status">Connecting to iCloud…</span>
+    <div id="apple-sign-in-button"></div>
+  </div>
+
+  <div id="desk" hidden>
+    <div class="wrap" style="padding:0">
+      <div class="who">
+        <div class="strip" id="summary"></div>
+        <div class="row">
+          <button type="button" class="quiet" id="reload">Reload</button>
+          <div id="apple-sign-out-button"></div>
+        </div>
+      </div>
+      <span class="small" id="deskStatus"></span>
+
+      <section>
+        <h2>Print codes</h2>
+        <p class="small">Hidden from finders once 5 different people report a code, or when blocked here. Clearing a code's reports puts it back.</p>
+        <div class="list" id="prints"></div>
+      </section>
+
+      <section>
+        <h2>Shared creatures</h2>
+        <p class="small">Hidden from share-code look-ups on the first report, or when blocked here. Clearing its reports puts it back.</p>
+        <div class="list" id="shares"></div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.apple-cloudkit.com/ck/2/cloudkit.js"></script>
+<script>
+// WHO MAY USE THIS. Two locks, either enough on its own for writing:
+//  - this page opens only for the moderator's iCloud user (MODERATOR), and
+//  - CloudKit itself refuses Block/Unblock/Clear from anyone without the
+//    Moderator security role, which only that user has. The page check is
+//    for convenience; the role is the security.
+// Reports and the records they point at are readable by every Pippette
+// player anyway (the app counts them), so nothing here is secret but the
+// power to change them.
+const CONTAINER = "iCloud.com.iainashmore.CharacterForgeMobile";
+const API_TOKEN = "f74736fc40e7ddeea4e8707903b036f3e1c251705ef0dc9aaa474a232d3cbe5b";
+const MODERATOR = "";   // the moderator's userRecordName in this container
+const PRINT_HIDE_AT = 5;
+const $ = (id) => document.getElementById(id);
+
+CloudKit.configure({ containers: [{
+  containerIdentifier: CONTAINER,
+  apiTokenAuth: { apiToken: API_TOKEN, persist: true,
+                  signInButton: { id: "apple-sign-in-button", theme: "black" },
+                  signOutButton: { id: "apple-sign-out-button", theme: "black" } },
+  environment: "production"
+}] });
+const container = CloudKit.getDefaultContainer();
+const db = container.publicCloudDatabase;
+
+function status(el, text, error) { el.textContent = text; el.className = error ? "small error" : "small"; }
+
+function checkErrors(res) {
+  if (res.hasErrors) {
+    const e = res.errors[0];
+    throw new Error(e.reason || e.serverErrorCode || String(e));
+  }
+  return res;
+}
+
+/** Every record of a type, following continuations. */
+async function queryAll(recordType, filterBy) {
+  let res = checkErrors(await db.performQuery({ recordType, filterBy }, { resultsLimit: 200 }));
+  let out = res.records.slice();
+  while (res.moreComing) {
+    res = checkErrors(await db.performQuery(res));
+    out = out.concat(res.records);
+  }
+  return out;
+}
+
+async function lookup(names, desiredKeys) {
+  const out = {};
+  for (let i = 0; i < names.length; i += 100) {
+    const res = await db.fetchRecords(names.slice(i, i + 100), { desiredKeys });
+    for (const r of res.records || []) if (r.recordName && r.fields) out[r.recordName] = r;
+  }
+  return out;
+}
+
+const field = (r, k) => r && r.fields && r.fields[k] ? r.fields[k].value : undefined;
+const assetURL = (a) => a && a.downloadURL ? a.downloadURL.replace("${f}", "file") : null;
+const day = (ms) => ms ? new Date(ms).toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" }) : "—";
+
+/** A print code's picture: the root of its tree, inside the tree asset. */
+async function printPicture(rec) {
+  const url = assetURL(field(rec, "tree"));
+  if (!url) return null;
+  try {
+    const tree = await (await fetch(url)).json();
+    const png = tree && tree.root && tree.root.thumbnailPNG;
+    return png ? `data:image/png;base64,${png}` : null;
+  } catch (_) { return null; }
+}
+
+function chip(text, kind) {
+  const s = document.createElement("span");
+  s.className = `chip ${kind}`;
+  s.textContent = text;
+  return s;
+}
+
+/** A button that asks once more before it acts: the first click arms it. */
+function action(label, sureLabel, run, danger) {
+  const b = document.createElement("button");
+  b.type = "button"; b.textContent = label; b.className = danger ? "danger" : "quiet";
+  let armed = false, timer;
+  b.addEventListener("click", async () => {
+    if (!armed) {
+      armed = true; b.textContent = sureLabel; b.className = "sure";
+      timer = setTimeout(() => { armed = false; b.textContent = label; b.className = danger ? "danger" : "quiet"; }, 4000);
+      return;
+    }
+    clearTimeout(timer);
+    b.disabled = true; b.textContent = "Working…";
+    try { await run(); await load(); }
+    catch (e) {
+      b.disabled = false; armed = false; b.textContent = label; b.className = danger ? "danger" : "quiet";
+      status($("deskStatus"), `That didn't go through: ${e.message}. Only an account with the Moderator role can change records.`, true);
+    }
+  });
+  return b;
+}
+
+/** Block or unblock: isBlocked on the code's or creature's own record. */
+async function setBlocked(rec, blocked) {
+  checkErrors(await db.saveRecords([{
+    recordType: rec.recordType, recordName: rec.recordName, recordChangeTag: rec.recordChangeTag,
+    fields: { isBlocked: { value: blocked ? 1 : 0 } }
+  }]));
+}
+
+/** Clear false reports: delete the report records themselves. */
+async function clearReports(reports) {
+  for (let i = 0; i < reports.length; i += 100)
+    checkErrors(await db.deleteRecords(reports.slice(i, i + 100).map((r) => r.recordName)));
+}
+
+function card({ picture, name, code, chips, meta, reasons, notes, actions }) {
+  const item = document.createElement("article");
+  item.className = "item";
+  const img = document.createElement("img");
+  img.className = "pic"; img.alt = name || "Reported creature";
+  if (picture) img.src = picture;
+  const body = document.createElement("div"); body.className = "body";
+  const head = document.createElement("div"); head.className = "head";
+  const left = document.createElement("div");
+  const n = document.createElement("div"); n.className = "name"; n.textContent = name || "a Pippette";
+  const c = document.createElement("div"); c.className = "code"; c.textContent = code;
+  left.append(n, c);
+  const right = document.createElement("div"); right.className = "reasons"; chips.forEach((x) => right.append(x));
+  head.append(left, right);
+  const m = document.createElement("div"); m.className = "meta";
+  meta.forEach((t) => { const s = document.createElement("span"); s.textContent = t; m.append(s); });
+  body.append(head, m);
+  if (reasons && reasons.length) {
+    const r = document.createElement("div"); r.className = "reasons";
+    reasons.forEach((t) => r.append(chip(t, "plain"))); body.append(r);
+  }
+  (notes || []).forEach((t) => { const p = document.createElement("div"); p.className = "note"; p.textContent = t; body.append(p); });
+  if (actions && actions.length) {
+    const a = document.createElement("div"); a.className = "actions"; actions.forEach((x) => a.append(x)); body.append(a);
+  }
+  item.append(img, body);
+  return item;
+}
+
+function fill(el, cards, emptyText) {
+  el.replaceChildren(...(cards.length ? cards : [Object.assign(document.createElement("div"), { className: "empty", textContent: emptyText })]));
+}
+
+async function load() {
+  status($("deskStatus"), "Loading…");
+  try {
+    // A filter every record passes: a query with none needs a record-name
+    // index these types do not have.
+    const printReports = await queryAll("PrintProvenanceReport",
+      [{ fieldName: "code", comparator: "GREATER_THAN", fieldValue: { value: "" } }]);
+    const shareReports = await queryAll("PublicModelReport",
+      [{ fieldName: "createdAt", comparator: "GREATER_THAN", fieldValue: { value: 0 } }]);
+
+    // PRINT CODES
+    const byCode = {};
+    for (const r of printReports) {
+      const code = field(r, "code"); if (!code) continue;
+      (byCode[code] = byCode[code] || []).push(r);
+    }
+    const codes = Object.keys(byCode);
+    const prints = await lookup(codes, ["name", "printedAt", "isBlocked", "tree", "modelRebuilt"]);
+    const printCards = await Promise.all(codes.map(async (code) => {
+      const reps = byCode[code], rec = prints[code];
+      const n = reps.length, blocked = field(rec, "isBlocked") === 1;
+      const last = Math.max(...reps.map((r) => field(r, "createdAt") || r.created?.timestamp || 0));
+      const chips = [blocked ? chip("Blocked", "hidden") : n >= PRINT_HIDE_AT ? chip("Hidden", "hidden") : chip("Visible", "waiting"),
+                     chip(`${n} of ${PRINT_HIDE_AT} reports`, "plain")];
+      const actions = [action(`Clear ${n} report${n === 1 ? "" : "s"}`, "Sure? Click again", () => clearReports(reps))];
+      if (rec) actions.unshift(blocked
+        ? action("Unblock", "Sure? Click again", () => setBlocked(rec, false))
+        : action("Block", "Sure? Click again", () => setBlocked(rec, true), true));
+      return { n, last, el: card({
+        picture: rec ? await printPicture(rec) : null,
+        name: rec ? field(rec, "name") : "Record not found",
+        code: code.slice(0, 4) + " " + code.slice(4),
+        chips, actions,
+        meta: [`Registered ${day(field(rec, "printedAt"))}`, `Last report ${day(last)}`,
+               field(rec, "modelRebuilt") === 1 ? "Model rebuilt from recipe" : "Original model"]
+      }) };
+    }));
+    printCards.sort((a, b) => b.n - a.n || b.last - a.last);
+    fill($("prints"), printCards.map((c) => c.el), "No print codes have been reported.");
+
+    // SHARED CREATURES
+    const byModel = {};
+    for (const r of shareReports) {
+      const id = field(r, "publishedID"); if (!id) continue;
+      (byModel[id] = byModel[id] || []).push(r);
+    }
+    const ids = Object.keys(byModel);
+    const models = await lookup(ids, ["name", "shareCode", "isBlocked", "thumbnail", "ownerID"]);
+    const shareCards = ids.map((id) => {
+      const reps = byModel[id], rec = models[id];
+      const reasons = [];
+      const count = (k, label) => { const c = reps.filter((r) => field(r, k) === 1).length; if (c) reasons.push(`${label} ×${c}`); };
+      count("inappropriate", "Inappropriate"); count("copyright", "Copyright");
+      count("brokenModel", "Broken model"); count("misleading", "Misleading");
+      const notes = reps.map((r) => field(r, "description")).filter((t) => t && t.trim());
+      const last = Math.max(...reps.map((r) => field(r, "createdAt") || 0));
+      const blocked = field(rec, "isBlocked") === 1;
+      const n = reps.length;
+      const actions = [action(`Clear ${n} report${n === 1 ? "" : "s"}`, "Sure? Click again", () => clearReports(reps))];
+      if (rec) actions.unshift(blocked
+        ? action("Unblock", "Sure? Click again", () => setBlocked(rec, false))
+        : action("Block", "Sure? Click again", () => setBlocked(rec, true), true));
+      return { n, last, el: card({
+        picture: assetURL(field(rec, "thumbnail")),
+        name: rec ? field(rec, "name") : "Record not found",
+        code: (rec && field(rec, "shareCode")) || id,
+        chips: [blocked ? chip("Blocked", "hidden") : chip("Hidden", "hidden"), chip(`${n} report${n === 1 ? "" : "s"}`, "plain")],
+        meta: [`Last report ${day(last)}`, `Record ${id}`],
+        reasons, notes, actions
+      }) };
+    });
+    shareCards.sort((a, b) => b.n - a.n || b.last - a.last);
+    fill($("shares"), shareCards.map((c) => c.el), "No shared creatures have been reported.");
+
+    const hiddenPrints = printCards.filter((c) => c.n >= PRINT_HIDE_AT).length;
+    $("summary").replaceChildren(
+      chip(`${codes.length} print code${codes.length === 1 ? "" : "s"} reported`, "plain"),
+      chip(`${hiddenPrints} hidden by reports`, hiddenPrints ? "hidden" : "ok"),
+      chip(`${ids.length} shared creature${ids.length === 1 ? "" : "s"} reported`, ids.length ? "waiting" : "ok"));
+    status($("deskStatus"), `Loaded ${new Date().toLocaleTimeString()}.`);
+  } catch (e) {
+    status($("deskStatus"), `Couldn't load: ${e.message}`, true);
+  }
+}
+
+function signedOut() {
+  $("desk").hidden = true; $("gate").hidden = false;
+  status($("status"), "Sign in with the moderator's Apple Account to open the desk.");
+  container.whenUserSignsIn().then(signedIn);
+}
+
+function signedIn(user) {
+  if (!MODERATOR || user.userRecordName !== MODERATOR) {
+    $("desk").hidden = true; $("gate").hidden = false;
+    status($("status"), MODERATOR
+      ? "This Apple Account isn't the Pippette moderator."
+      : `Signed in as ${user.userRecordName}. The page doesn't know its moderator yet: that id goes in MODERATOR.`, !!MODERATOR);
+    const out = document.createElement("button");
+    out.type = "button"; out.className = "quiet"; out.textContent = "Sign out";
+    out.onclick = () => container.signOut ? container.signOut().then(() => location.reload()) : location.reload();
+    $("gate").append(out);
+    return;
+  }
+  $("gate").hidden = true; $("desk").hidden = false;
+  container.whenUserSignsOut().then(signedOut);
+  load();
+}
+
+$("reload").addEventListener("click", load);
+container.setUpAuth()
+  .then((user) => user ? signedIn(user) : signedOut())
+  .catch((e) => status($("status"), `Couldn't reach iCloud: ${e.message || e}`, true));
+</script>
+</body>
+</html>
